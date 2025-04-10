@@ -134,10 +134,3 @@ MIT License © Hao Wang, Jue Hao
 
 Feel free to open an issue or contact the authors for questions and collaboration ideas.
 
----
-
-## To Do
-
-- [ ] Cross-validation support
-- [ ] Time series adaptation
-- [ ] GMM visualization refinement
