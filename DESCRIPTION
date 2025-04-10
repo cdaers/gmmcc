@@ -1,0 +1,31 @@
+Package: gmmcc
+Type: Package
+Title: GMM Chain Classification - Demo
+Version: 0.1.0
+Authors@R: 
+    c(person("Hao", "Wang",
+             role = c("aut", "cre"),
+             email = "wanghao@cdaers.com"),
+      person("Jue", "Hao",
+             role = "aut",
+             email = "Robbiehj0361@cdaers.com"))
+Description: Demo code for Iterative Classification using LR-GMM OctoCore Model.
+License: GPL (>= 2)
+URL: https://github.com/cdaers/gmmcc/
+BugReports: https://github.com/cdaers/gmmcc/issues
+Depends: 
+    caret,
+    glmnet,
+    mclust,
+    nnet,
+    R (>= 4.0.0)
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.2
+Imports: 
+    MASS,
+    pROC
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr

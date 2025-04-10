@@ -1,0 +1,153 @@
+---
+title: "How to Use gmmcc: A Brief Introduction"
+author: "Hao Wang & Jue Hao"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{gmmcc-tutorial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, include=FALSE}
+library(gmmcc)
+```
+
+The `gmmcc` (short for Gaussian Mixture Model Chain Classification) package provides a hybrid chain-style classification framework for enhanced classification performance. It is particularly suitable for binary and multi-class classification problems. The `gmmcc` package builds upon several existing modeling and clustering libraries in R. If a modeling package is missing, there is a prompt to install it.
+
+You can install the package using the following command:
+```r
+## From CRAN
+install.packages("gmmcc", dependencies = c("Depends"))
+
+## From GitHub:
+remotes::install_github("cdaers/gmmcc")
+```
+
+This package integrates LR and GMM together that combines interpretability with distributional flexibility. LR serves as the initial classifier, offering transparent coefficient-based insights, while GMM is applied to samples misclassified by LR to help capture complex, non-linear structures in the data. To avoid local optima, `gmmcc` employs a chain-based GMM optimization strategy: multiple chains are initialized from different starting points and optimized independently. By doing so the hybrid model will enhance robustness by exploring broader parameter space.
+The classification process iterates between LR and GMM until a predefined error threshold is met. In each iteration, feature selection is guided by both LR coefficients and GMM cluster structures. This dual approach allows the model to refine feature templates by uncovering multi-modal patterns and incorporating new predictive features based on error reduction.
+Through this mechanism, `gmmcc` provides a statistically grounded yet adaptive framework for classification, which would be very helpful when facing high-dimensional or heterogeneous datasets such as those found in biomedical applications.
+
+The `model_run` is the core function designed to perform a LR-GMM classification task on a given dataset. We have already put everything you need in this function, including train_test_split and iterative classification. The function is executed multiple times (default: 10) and we gather all the result to output a metric result plus a feature template result. This allows for evaluating the performance of the models and comparing metrics such as accuracy, precision, recall, F1-score, and Area Under the Curve (AUC). The feature template gives the most useful features for analyzing this task.
+
+By specifying different parameters, users can control nearly every aspect of the modeling process—from the choice of evaluation metric and feature selection strategy to the structure and stopping criteria of the GMM chains. For example, users can enable LASSO penalties in logistic regression by setting `penalty = TRUE`, define the minimal number of features to retain, and specify whether statistical significance testing should guide feature selection. Simultaneously, the `gmm_args` parameter allows tuning of the GMM classifier, such as the number of chains to run and their maximum length. Thresholds for model accuracy can be adjusted with `thres` and `min_thres` to regulate when a chain is considered satisfactory or when iteration should stop. Additionally, users can select the `opt_metric` and the `opt_phase` to determine which the best-performing model is selected. 
+
+To demonstrate this function, the brcancer_diag and Sale data within the `gmmcc` package will be used.
+
+The `brcancer_diag` data consist of 569 data points collected on 30 predictors. The goal is to predict the two classes for breast cancer patients or for healthy samples. The `Sale` data contains 440 samples with 6 predictors. It is a multi-class task in aims of predicting customers form Lisbon, Oporto or other regions. 
+
+We now demonstrate how model_run() works in practice using the `brcancer_diag` dataset. Here, we enable LASSO penalty in logistic regression and save the intermediate models for inspection. The model is selected based on AUC.
+```r
+library(gmmcc)
+data(brcancer_diag)
+## Binary classification
+model_result <- model_run(brcancer_diag, 
+                          dat_nm = "brcancer_diag",
+                          lr_params = list(penalty = TRUE, min_features = 5),
+                          model_saved = TRUE, 
+                          opt_metric = "AUC")
+```
+This call will automatically print intermediate progress during execution. A sample of the console output is shown below:
+```r
+#>#--------- run [1] ---------" ## Start of the first repitition.
+#> "---------  training [1] started ---------" ## Training phase begins
+#> "Accuracy of Logistic Regression on training data: 0.972361809045226." 
+#> "GMM on feature X3 ... " ## GMM is applied to all features one by one.
+#> "GMM on feature X4 ... "
+#> "GMM on feature X5 ... "
+#> ...
+## The first GMM chain begins.
+#> "GMM chain 1 in train phase"
+## First iteration of the GMM chain.
+#> "--------- 1-iter ---------"
+## At the first iteration, GMM applied on feature X3 achieves perfect accuracy (100%).
+#> "GMM on feature X3 with accuracy rate 1 at iteration 1."
+#> fitting ...
+#> 100% # Fitting is completed successfully.
+## Since the chain achieved accuracy above the threshold (0.98), further iterations are skipped.
+#> "GMM chain suspended: accuracy threshold 0.98 already reached!" 
+#> "GMM chain 2 in train phase"  # The second GMM chain.
+#> "--------- 1-iter ---------"
+#> ...
+#> "---------  training [1] finished ---------"
+
+
+## Testing phase for the same run begins with the optimal model from train phase.
+#> "---------  testing [1] started ---------"
+#> "Accuracy of Logistic Regression on test dataset: 0.964912280701754."
+#> "GMM chain 1 in test phase"
+#> "--------- 1-iter ---------"
+#> "GMM on feature X3 with accuracy rate 0.982456140350877 at iteration 1."
+#> fitting ...
+#> 100%
+#> "GMM chain suspended: accuracy threshold 0.98 already reached!"
+## Total time cost for the full model run is approximately 0.96 seconds.
+#> "run [1] costs 0.960000000000946 seconds."
+```
+As seen above, the model first fits a LR model, which already achieves high accuracy. Then, the GMM chains refine the prediction by focusing on uncertain samples. Based on the analysis, the chains terminate early as soon as the desired accuracy (here, 0.98) is achieved.
+
+Finally, we can visualize the performance consistency:
+```r
+## Accuracy rates from training phase vs. testing phase
+accuracy <- model_result$metric_rec$Accuracy
+phase <- model_result$metric_rec$phase
+boxplot(accuracy ~ phase)
+```
+<div style="text-align: center;">
+<img src="C:/Users/lenovo/Desktop/OctoCore Package/gmmcc/vignettes/accboxplot.png" alt="Acc boxplot" width="500px">
+</div>
+
+By comparing their medians and variability, we can assess whether the model is overfitting. If the test accuracy is significantly lower than the training accuracy, it may indicate overfitting. Additionally, the compact distribution can tell us whether the model performs consistently across repeated runs. 
+
+To further evaluate the reliability of the model, we also include a stability test within our package which is the `stab_test_run` function. This function selects the optimal model obtained from the previous `model_run` based on a chosen evaluation metric and assesses its performance under different data splits. 
+
+```r
+## model stability test
+test_result <- stab_test_run(brcancer_diag, "brcancer_diag", model_result)
+accuracy <- test_result$result$Accuracy
+test_size <- test_result$result$test_size
+boxplot(accuracy ~ test_size)
+```
+<div style="text-align: center;">
+<img src="C:/Users/lenovo/Desktop/OctoCore Package/gmmcc/vignettes/stability_test_br.png" alt="Acc boxplot" width="500px">
+</div>
+
+The resulting accuracy is plotted across various test set sizes, providing a visual summary of model robustness. A narrow range of accuracy across different splits means high stability of the model. Moreover, if accuracy remains consistently high regardless of the test set proportion, it confirms that the model does not heavily rely on specific data partitions and is capable of generalizing well in practical scenarios.
+
+Below is another example by dataset `Sale`, which is a multiclass task. However, the process remains the same to run the entire model on multiclass task. Be sure to select your optimization target using `opt_metric` and set the `min_features` based on your desire.
+
+```r
+## Multiclass classification
+data(sale)
+model_result <- model_run(sale, dat_nm = "sale",
+                         gmm_args = list(num_chains = 3),
+                         model_saved = TRUE, opt_metric = "AUC")
+## accuracy rates from training phase vs. testing phase
+accuracy <- model_result$metric_rec$Accuracy
+phase <- model_result$metric_rec$phase
+boxplot(accuracy ~ phase)
+
+## model stability test
+test_result <- stab_test_run(sale, "sale", model_result)
+accuracy <- test_result$result$Accuracy
+test_size <- test_result$result$test_size
+boxplot(accuracy ~ test_size)
+```
+<div style="text-align: center;">
+<img src="C:/Users/lenovo/Desktop/OctoCore Package/gmmcc/vignettes/accboxplot_sale.png" alt="Acc boxplot" width="500px">
+</div>
+
+<div style="text-align: center;">
+<img src="C:/Users/lenovo/Desktop/OctoCore Package/gmmcc/vignettes/stability_test_sale.png" alt="Acc boxplot" width="500px">
+</div>
+
+
+
+
+
