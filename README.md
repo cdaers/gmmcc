@@ -1,8 +1,8 @@
 # gmmcc
 
-**Generalized Method of Moments for Clustering and Classification**
+**Gaussian Mixture Model for Clustering and Classification**
 
-An R package that implements a hybrid classification model combining Logistic Regression (LR) and Generalized Method of Moments (GMM) chains. Designed for robust, interpretable classification in both binary and multiclass settings.
+An R package that implements a hybrid classification model combining Logistic Regression (LR) and Gaussian Mixture Model (GMM) chains. Designed for robust, interpretable classification in both binary and multiclass settings.
 
 ---
 
