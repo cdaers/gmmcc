@@ -1,6 +1,6 @@
 # gmmcc
 
-**Gaussian Mixture Model for Clustering and Classification**
+**Gaussian Mixture Model Chain Classification**
 
 An R package that implements a hybrid classification model combining Logistic Regression (LR) and Gaussian Mixture Model (GMM) chains. Designed for robust, interpretable classification in both binary and multiclass settings.
 
